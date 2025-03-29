@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>心算訓練遊戲</title>
+    <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='%23FF9AA2'/><text x='50' y='60' font-size='60' text-anchor='middle' fill='%23FFF'>+</text></svg>">
+    <style>
+        body {
+            font-family: 'Comic Sans MS', 'Yu Gothic', 'Microsoft YaHei UI', cursive, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #FFF9E6;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><circle cx="20" cy="20" r="5" fill="%23FFD1DC" opacity="0.5"/><circle cx="80" cy="30" r="7" fill="%23B5EAD7" opacity="0.5"/><circle cx="40" cy="70" r="6" fill="%23C7CEEA" opacity="0.5"/></svg>');
+        }
+        .game-container {
+            text-align: center;
+            background: #FFF;
+            padding: 3vh 3vw;
+            border-radius: 20px;
+            box-shadow: 0 5px 15px rgba(255,182,193,0.3);
+            width: 50%;
+            max-width: 50vw;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border: 3px solid #FFD1DC;
+        }
+        .number-display {
+            font-size: calc(8vw + 8vh);
+            font-family: 'Comic Sans MS', 'Yu Gothic', 'Microsoft YaHei UI', cursive, sans-serif;
+            margin: 0 auto;
+            padding: 3vh 3vw;
+            border: 3px dashed #FF9AA2;
+            border-radius: 20px;
+            width: 70vmin;
+            height: 70vmin;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            box-sizing: border-box;
+            background-color: #FFF;
+            color: #FF9AA2;
+            text-shadow: 2px 2px 0px rgba(255,154,162,0.3);
+        }
+        .positive {
+            color: #FF6B6B;
+            text-shadow: 2px 2px 0px #FFD1DC;
+        }
+        .negative {
+            color: #6B8CFF;
+            text-shadow: 2px 2px 0px #C7CEEA;
+        }
+        .answer {
+            color: #FFD700;
+            text-shadow: 2px 2px 0px rgba(0,0,0,0.1);
+        }
+        .show-answer {
+            color: #AAAAAA;
+            font-style: italic;
+        }
+        .level-info {
+            margin-top: 20px;
+            font-size: 18px;
+        }
+        
+        .level-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3vh;
+            flex-wrap: wrap;
+        }
+        
+        .level-button {
+            padding: 1vh 1.5vw;
+            border: none;
+            border-radius: 15px;
+            background-color: #FFD1DC;
+            cursor: pointer;
+            margin: 0.5vh 0.2vw;
+            font-size: calc(1vw + 1vh);
+            font-family: 'Comic Sans MS', 'Yu Gothic', 'Microsoft YaHei UI', cursive, sans-serif;
+            transition: all 0.3s ease;
+        }
+        
+        .level-button.active {
+            background-color: #FF9AA2;
+            color: white;
+            transform: scale(1.05);
+        }
+        
+        .level-button:hover {
+            background-color: #FFB7B2;
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="level-buttons">
+            <button class="level-button" data-level="練習">練習</button>
+            <button class="level-button" data-level="青銅">青銅</button>
+            <button class="level-button" data-level="白銀">白銀</button>
+            <button class="level-button" data-level="黃金">黃金</button>
+            <button class="level-button" data-level="白金">白金</button>
+            <button class="level-button" data-level="鑽石">鑽石</button>
+        </div>
+        <div class="number-display" id="numberDisplay">GO</div>
+
+    </div>
+
+    <script>
+        // 遊戲狀態變量
+        let gameActive = false;
+        let currentNumber = 0;
+        let totalSum = 0;
+        let questionCount = 0;
+        let showAnswer = false;
+        
+        // 難度等級設定
+        const levels = {
+            '練習': { time: 2000, questions: 5, min: -2, max: 5 },
+            '青銅': { time: 1500, questions: 8, min: -5, max: 7 },
+            '白銀': { time: 1200, questions: 10, min: -7, max: 9 },
+            '黃金': { time: 1000, questions: 12, min: -9, max: 9 },
+            '白金': { time: 800, questions: 15, min: -9, max: 9 },
+            '鑽石': { time: 600, questions: 20, min: -15, max: 15 }
+        };
+        
+        let currentLevel = '練習';
+        let displayTime = levels[currentLevel].time;
+        let totalQuestions = levels[currentLevel].questions;
+        
+        // 獲取DOM元素
+        const numberDisplay = document.getElementById('numberDisplay');
+        const levelInfo = document.getElementById('levelInfo');
+        
+        // 點擊事件
+        numberDisplay.addEventListener('click', () => {
+            if (!gameActive && !showAnswer) {
+                startGame();
+            } else if (gameActive && questionCount >= totalQuestions) {
+                gameActive = false;
+                numberDisplay.textContent = '公佈答案';
+                numberDisplay.className = 'number-display show-answer';
+                showAnswer = true;
+            } else if (showAnswer) {
+                if (numberDisplay.textContent === '公佈答案') {
+                    numberDisplay.textContent = `${totalSum}`;
+                    numberDisplay.className = 'number-display answer';
+                } else {
+                    resetGame();
+                    gameActive = false;
+                }
+            }
+        });
+        
+        document.querySelectorAll('.level-button').forEach(button => {
+            button.addEventListener('click', () => {
+                currentLevel = button.dataset.level;
+                displayTime = levels[currentLevel].time;
+                totalQuestions = levels[currentLevel].questions;
+                document.querySelectorAll('.level-button').forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+            });
+        });
+        
+        // 遊戲邏輯
+        function startGame() {
+            gameActive = true;
+            showAnswer = false;
+            totalSum = 0;
+            questionCount = 0;
+            
+            document.querySelectorAll('.level-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelector(`.level-button[data-level="${currentLevel}"]`).classList.add('active');
+            numberDisplay.textContent = '...';
+            numberDisplay.className = 'number-display';
+            
+            setTimeout(() => {
+                showNextNumber();
+            }, 1000);
+        }
+        
+        function showNextNumber() {
+            if (questionCount >= totalQuestions) {
+                gameActive = false;
+                numberDisplay.textContent = '公佈答案';
+                numberDisplay.className = 'number-display show-answer';
+                showAnswer = true;
+                return;
+            }
+            
+            const level = levels[currentLevel];
+            currentNumber = Math.floor(Math.random() * (level.max - level.min + 1)) + level.min;
+            if (currentNumber === 0) currentNumber = 1; // 避免0
+            
+            totalSum += currentNumber;
+            questionCount++;
+            
+            // 設置數字顏色
+            numberDisplay.textContent = currentNumber;
+            numberDisplay.className = `number-display ${currentNumber > 0 ? 'positive' : 'negative'}`;
+            
+            // 計時顯示下一個數字
+            timer = setTimeout(() => {
+                showNextNumber();
+            }, displayTime);
+        }
+        
+        function resetGame() {
+            showAnswer = false;
+            numberDisplay.textContent = 'GO';
+            numberDisplay.className = 'number-display';
+        }
+    </script>
+</body>
+</html>
